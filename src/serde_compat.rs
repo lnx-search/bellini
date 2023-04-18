@@ -69,14 +69,6 @@ impl<'de: 'a, 'a> Deserialize<'de> for Value<'a> {
             }
 
             #[inline]
-            fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
-            where
-                E: Error,
-            {
-                Ok(Value::Bytes(Bytes::from(v)))
-            }
-
-            #[inline]
             fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
             where
                 E: Error,
@@ -122,6 +114,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for Value<'a> {
                     Ok(TypedVec::F64(values)) => Ok(Value::ArrayF64(values)),
                     Ok(TypedVec::Bool(values)) => Ok(Value::ArrayBool(values)),
                     Ok(TypedVec::Dynamic(values)) => Ok(Value::ArrayDynamic(values)),
+                    Ok(TypedVec::Bytes(values)) => Ok(Value::ArrayBytes(values)),
                     Err(e) => Err(e),
                 }
             }
@@ -239,6 +232,7 @@ pub enum TypedVec<'a> {
     I64(Vec<i64>),
     F64(Vec<f64>),
     Bool(Vec<bool>),
+    Bytes(Vec<Bytes>),
     #[serde(bound(deserialize = "'de: 'a"))]
     Dynamic(Vec<Value<'a>>),
 }

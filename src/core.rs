@@ -5,14 +5,15 @@
 //! working with a concrete type.
 
 use std::borrow::Cow;
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[repr(C)]
-#[derive(Archive, Serialize, Deserialize, Default)]
+#[derive(Archive, Serialize, Deserialize, Default, PartialEq, Debug)]
 #[archive_attr(repr(C))]
-#[cfg_attr(feature = "validation", archive(check_bytes))]
+#[cfg_attr(any(feature = "validation", test), archive(check_bytes))]
 /// A wrapper around a given set of document object keys and values.
 pub struct Document<'a>(Vec<(Text<'a>, Value<'a>)>);
 
@@ -53,9 +54,15 @@ impl<'a> DerefMut for Document<'a> {
     }
 }
 
-#[derive(Archive, Serialize, Deserialize, Debug)]
+#[derive(Archive, Serialize, Deserialize, Debug, PartialEq)]
 #[archive(bound(serialize = "__S: rkyv::ser::ScratchSpace + rkyv::ser::Serializer"))]
-#[cfg_attr(feature = "validation", archive(check_bytes))]
+#[cfg_attr(any(feature = "validation", test), archive(check_bytes))]
+#[cfg_attr(
+    any(feature = "validation", test),
+    archive_attr(check_bytes(
+        bound = "__C: rkyv::validation::ArchiveContext, <__C as rkyv::Fallible>::Error: rkyv::bytecheck::Error"
+    ))
+)]
 /// A document field value.
 ///
 /// There are various specialisations applied for stricter types i.e. arrays of
@@ -68,7 +75,7 @@ pub enum Value<'a> {
     /// A UTF-8 string value.
     String(Text<'a>),
     /// A bytes value.
-    Bytes(Bytes<'a>),
+    Bytes(Bytes),
     /// A u64 value.
     U64(u64),
     /// A i64 value.
@@ -80,7 +87,7 @@ pub enum Value<'a> {
     /// An array of UTF-8 string values.
     ArrayString(Vec<Text<'a>>),
     /// An array of bytes values.
-    ArrayBytes(Vec<Bytes<'a>>),
+    ArrayBytes(Vec<Bytes>),
     /// An array of u64 values.
     ArrayU64(#[with(rkyv::with::Raw)] Vec<u64>),
     /// An array of i64 values.
@@ -92,27 +99,35 @@ pub enum Value<'a> {
     /// This is much less performant than using
     /// concrete types, this is only for supporting
     /// the JSON spec.
-    ArrayDynamic(#[omit_bounds] Vec<Value<'a>>),
+    ArrayDynamic(
+        #[omit_bounds]
+        #[cfg_attr(any(feature = "validation", test), archive_attr(omit_bounds))]
+        Vec<Value<'a>>,
+    ),
     /// An object of string keys and dynamic values.
-    Object(#[omit_bounds] Vec<(Text<'a>, Value<'a>)>),
+    Object(
+        #[omit_bounds]
+        #[cfg_attr(any(feature = "validation", test), archive_attr(omit_bounds))]
+        Vec<(Text<'a>, Value<'a>)>,
+    ),
 }
 
 #[repr(C)]
-#[derive(Archive, Serialize, Deserialize, Debug)]
+#[derive(Archive, Serialize, Deserialize, Eq, PartialEq)]
 #[archive_attr(repr(C))]
-#[cfg_attr(feature = "validation", archive(check_bytes))]
+#[cfg_attr(any(feature = "validation", test), archive(check_bytes))]
 /// A UTF-8 encoded string.
-pub struct Text<'a>(#[with(rkyv::with::AsOwned)] Cow<'a, [u8]>);
+pub struct Text<'a>(#[with(rkyv::with::AsOwned)] Cow<'a, str>);
 
 impl<'a> From<&'a str> for Text<'a> {
     fn from(value: &'a str) -> Self {
-        Self(Cow::Borrowed(value.as_ref()))
+        Self(Cow::Borrowed(value))
     }
 }
 
 impl<'a> From<String> for Text<'a> {
     fn from(value: String) -> Self {
-        Self(Cow::Owned(value.into_bytes()))
+        Self(Cow::Owned(value))
     }
 }
 
@@ -120,29 +135,37 @@ impl<'a> AsRef<str> for Text<'a> {
     fn as_ref(&self) -> &str {
         // SAFETY:
         // The string is guaranteed to be UTF8 going into the type.
-        unsafe { std::str::from_utf8_unchecked(self.0.as_ref()) }
+        // unsafe { std::str::from_utf8_unchecked(self.0.as_ref()) }
+        self.0.as_ref()
+    }
+}
+
+impl<'a> Debug for Text<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", <Self as AsRef<str>>::as_ref(self))
+    }
+}
+
+impl<'a> Display for Text<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", <Self as AsRef<str>>::as_ref(self))
     }
 }
 
 #[repr(C)]
-#[derive(Archive, Serialize, Deserialize, Debug)]
+#[derive(Archive, Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[archive_attr(repr(C))]
-#[cfg_attr(feature = "validation", archive(check_bytes))]
-pub struct Bytes<'a>(#[with(rkyv::with::AsOwned)] Cow<'a, [u8]>);
+#[cfg_attr(any(feature = "validation", test), archive(check_bytes))]
+/// An arbitrary byte slice backed by a `Cow`
+pub struct Bytes(#[with(rkyv::with::Raw)] Vec<u8>);
 
-impl<'a> From<&'a [u8]> for Bytes<'a> {
-    fn from(value: &'a [u8]) -> Self {
-        Self(Cow::Borrowed(value))
-    }
-}
-
-impl<'a> From<Vec<u8>> for Bytes<'a> {
+impl From<Vec<u8>> for Bytes {
     fn from(value: Vec<u8>) -> Self {
-        Self(Cow::Owned(value))
+        Self(value)
     }
 }
 
-impl<'a> AsRef<[u8]> for Text<'a> {
+impl AsRef<[u8]> for Bytes {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
     }

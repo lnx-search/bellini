@@ -117,12 +117,14 @@ impl<W: Write> Write for ChecksumAndLenWriter<W> {
 
 #[cfg(test)]
 mod tests {
+    use rkyv::AlignedVec;
+
     use super::*;
     use crate::{Document, Text, Value};
 
     #[test]
     fn test_encoder() {
-        let mut writer = Vec::new();
+        let mut writer = AlignedVec::new();
         let mut encoder = Encoder::<_, DEFAULT_SCRATCH_SPACE>::new(&mut writer);
 
         let mut document = Document::default();
@@ -131,11 +133,20 @@ mod tests {
 
         encoder.encode(&document).expect("Encode document");
 
-        assert_eq!(writer.len(), 88, "Written byte lengths should match");
+        assert_eq!(writer.len(), 80, "Written byte lengths should match");
 
         let checksum =
             u32::from_le_bytes(writer[writer.len() - 4..].try_into().unwrap());
         let actual = crc32fast::hash(&writer[..writer.len() - 8]);
         assert_eq!(checksum, actual, "Checksums should match");
+
+        let rkyved_data = &writer[..writer.len() - 8];
+        let returned_doc =
+            rkyv::from_bytes::<Document>(rkyved_data).expect("Deserialize document");
+
+        assert_eq!(
+            document, returned_doc,
+            "Documents deserialized should match"
+        );
     }
 }

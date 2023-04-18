@@ -9,7 +9,7 @@ edition = "2021"
 rkyv = "0.7.41"
 crc32fast = "1.3.2"
 
-serde = { version = "1", optional = true }
+serde = { version = "1", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 rkyv = { version = "0.7.41", features = ["validation"] }
