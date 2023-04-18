@@ -72,7 +72,6 @@ pub enum Value<'a> {
 #[archive_attr(repr(C))]
 pub struct Text<'a>(
     #[with(rkyv::with::AsOwned)]
-    // #[with(rkyv::with::Raw)]
     pub Cow<'a, [u8]>,
 );
 
@@ -82,6 +81,5 @@ pub struct Text<'a>(
 #[archive_attr(repr(C))]
 pub struct Bytes<'a>(
     #[with(rkyv::with::AsOwned)]
-    // #[with(rkyv::with::Raw)]
     pub Cow<'a, [u8]>,
 );
