@@ -159,6 +159,19 @@ impl<'a> AsRef<str> for Text<'a> {
         self.0.as_ref()
     }
 }
+impl<'a> Deref for ArchivedText<'a> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.as_str()
+    }
+}
+
+impl<'a> AsRef<str> for ArchivedText<'a> {
+    fn as_ref(&self) -> &str {
+        self.0.as_str()
+    }
+}
 
 impl<'a> Debug for Text<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -172,9 +185,21 @@ impl<'a> Display for Text<'a> {
     }
 }
 
+impl<'a> Debug for ArchivedText<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.as_ref())
+    }
+}
+
+impl<'a> Display for ArchivedText<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
 #[repr(C)]
 #[derive(Archive, Serialize, Deserialize, Debug, Eq, PartialEq)]
-#[archive_attr(repr(C))]
+#[archive_attr(repr(C), derive(Debug))]
 #[cfg_attr(any(feature = "validation", test), archive(check_bytes))]
 /// An arbitrary byte slice backed by a `Cow`
 pub struct Bytes(#[with(rkyv::with::Raw)] Vec<u8>);

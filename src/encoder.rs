@@ -95,6 +95,7 @@ impl<W: Write> ChecksumAndLenWriter<W> {
         let checksum = mem::take(&mut self.checksum_hasher).finalize();
         self.writer.write_all(&(self.length as u32).to_le_bytes())?;
         self.writer.write_all(&checksum.to_le_bytes())?;
+        self.reset();
         Ok(())
     }
 

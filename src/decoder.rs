@@ -8,7 +8,7 @@ pub use validation_archiver::{CheckedArchiver, DeserializerIterator};
 use crate::Document;
 
 const MINIMUM_BUFFER_LEN: usize = FOOTER_SIZE + 1;
-const FOOTER_SIZE: usize = 8;
+pub const FOOTER_SIZE: usize = 8;
 
 /// A document decoder that produces document from a given borrowed buffer.
 ///
@@ -195,7 +195,7 @@ pub struct BufferWalker<'a> {
 }
 
 impl<'a> BufferWalker<'a> {
-    fn new(buf: &'a [u8], validate_checksum: bool) -> Self {
+    pub fn new(buf: &'a [u8], validate_checksum: bool) -> Self {
         Self {
             buf,
             validate_checksum,
@@ -428,14 +428,17 @@ mod tests {
 
         let mut document = Document::default();
         document.insert("id", Value::U64(1));
+        document.insert("terms", Value::ArrayString(vec![Text::from("hello")]));
         encoder.encode(&document).expect("Encode document");
 
         let mut document = Document::default();
         document.insert("id", Value::U64(2));
+        document.insert("terms", Value::ArrayString(vec![Text::from("hello2")]));
         encoder.encode(&document).expect("Encode document");
 
         let mut document = Document::default();
         document.insert("id", Value::U64(3));
+        document.insert("terms", Value::ArrayString(vec![Text::from("hello3")]));
         encoder.encode(&document).expect("Encode document");
 
         let decoder = Decoder::new(&writer);
@@ -462,19 +465,22 @@ mod tests {
             .expect("Deserialize doc");
         let doc4 = docs.next();
 
+        assert_eq!(doc1[0].1, Value::U64(3), "Document values should match.");
         assert_eq!(
-            doc1.into_inner()[0].1,
-            Value::U64(3),
+            doc1[1].1,
+            Value::ArrayString(vec![Text::from("hello3")]),
             "Document values should match."
         );
+        assert_eq!(doc2[0].1, Value::U64(2), "Document values should match.");
         assert_eq!(
-            doc2.into_inner()[0].1,
-            Value::U64(2),
+            doc2[1].1,
+            Value::ArrayString(vec![Text::from("hello2")]),
             "Document values should match."
         );
+        assert_eq!(doc3[0].1, Value::U64(1), "Document values should match.");
         assert_eq!(
-            doc3.into_inner()[0].1,
-            Value::U64(1),
+            doc3[1].1,
+            Value::ArrayString(vec![Text::from("hello")]),
             "Document values should match."
         );
         assert!(doc4.is_none(), "Doc4 should not exist");
@@ -487,14 +493,17 @@ mod tests {
 
         let mut document = Document::default();
         document.insert("id", Value::U64(1));
+        document.insert("terms", Value::ArrayString(vec![Text::from("hello")]));
         encoder.encode(&document).expect("Encode document");
 
         let mut document = Document::default();
         document.insert("id", Value::U64(2));
+        document.insert("terms", Value::ArrayString(vec![Text::from("hello2")]));
         encoder.encode(&document).expect("Encode document");
 
         let mut document = Document::default();
         document.insert("id", Value::U64(3));
+        document.insert("terms", Value::ArrayString(vec![Text::from("hello3")]));
         encoder.encode(&document).expect("Encode document");
 
         let decoder = Decoder::new(&writer);
@@ -516,12 +525,27 @@ mod tests {
 
         assert_eq!(doc1[0].0.as_ref(), "id", "Document key should match.");
         assert_eq!(doc1[0].1, Value::U64(3), "Document values should match.");
+        assert_eq!(
+            doc1[1].1,
+            Value::ArrayString(vec![Text::from("hello3")]),
+            "Document values should match."
+        );
 
         assert_eq!(doc2[0].0.as_ref(), "id", "Document key should match.");
         assert_eq!(doc2[0].1, Value::U64(2), "Document values should match.");
+        assert_eq!(
+            doc2[1].1,
+            Value::ArrayString(vec![Text::from("hello2")]),
+            "Document values should match."
+        );
 
         assert_eq!(doc3[0].0.as_ref(), "id", "Document key should match.");
         assert_eq!(doc3[0].1, Value::U64(1), "Document values should match.");
+        assert_eq!(
+            doc3[1].1,
+            Value::ArrayString(vec![Text::from("hello")]),
+            "Document values should match."
+        );
 
         assert!(doc4.is_none(), "Doc4 should not exist");
     }
