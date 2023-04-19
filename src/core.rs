@@ -7,6 +7,7 @@
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
+use std::time::Duration;
 
 use rkyv::{Archive, Deserialize, Serialize};
 
@@ -113,6 +114,8 @@ pub enum Value<'a> {
     I64(i64),
     /// A f64 value.
     F64(f64),
+    /// A date duration value starting from `UNIX_EPOCH`.
+    Date(Duration),
     /// An array of boolean values.
     ArrayBool(#[with(rkyv::with::CopyOptimize)] Vec<bool>),
     /// An array of UTF-8 string values.
@@ -125,6 +128,8 @@ pub enum Value<'a> {
     ArrayI64(#[with(rkyv::with::Raw)] Vec<i64>),
     /// An array of f64 values.
     ArrayF64(#[with(rkyv::with::Raw)] Vec<f64>),
+    /// An array of date duration values from `UNIX_EPOCH`.
+    ArrayDate(Vec<Duration>),
     /// An array of dynamic values.
     ///
     /// This is much less performant than using
@@ -178,12 +183,14 @@ impl<'a> Debug for ArchivedValue<'a> {
             ArchivedValue::U64(v) => write!(f, "{v}"),
             ArchivedValue::I64(v) => write!(f, "{v}"),
             ArchivedValue::F64(v) => write!(f, "{v}"),
+            ArchivedValue::Date(v) => write!(f, "{v:?}"),
             ArchivedValue::ArrayBool(values) => write_array!(f, values),
             ArchivedValue::ArrayString(values) => write_array!(f, values, debug),
             ArchivedValue::ArrayBytes(values) => write_array!(f, values, debug),
             ArchivedValue::ArrayU64(values) => write_array!(f, values),
             ArchivedValue::ArrayI64(values) => write_array!(f, values),
             ArchivedValue::ArrayF64(values) => write_array!(f, values),
+            ArchivedValue::ArrayDate(values) => write_array!(f, values, debug),
             ArchivedValue::ArrayDynamic(values) => write_array!(f, values, debug),
             ArchivedValue::Object(object) => {
                 write!(f, "{{")?;
