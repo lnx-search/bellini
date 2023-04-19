@@ -6,9 +6,8 @@
 
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 
-use rkyv::vec::ArchivedVec;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[repr(C)]
@@ -16,56 +15,73 @@ use rkyv::{Archive, Deserialize, Serialize};
 #[archive_attr(repr(C))]
 #[cfg_attr(any(feature = "validation", test), archive(check_bytes))]
 /// A wrapper around a given set of document object keys and values.
-pub struct Document<'a>(Vec<(Text<'a>, Value<'a>)>);
+///
+/// The document has a specialised ID field but this is not set by default.
+pub struct Document<'a> {
+    id: u64,
+    fields: Vec<(Text<'a>, Value<'a>)>,
+}
 
 impl<'a> Document<'a> {
     /// Create a new document with a given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self(Vec::with_capacity(capacity))
+        Self {
+            id: 0,
+            fields: Vec::with_capacity(capacity),
+        }
     }
 
+    #[inline]
+    /// The unique ID of the document.
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
+    #[inline]
+    /// Sets the unique ID of the document.
+    pub fn set_id(&mut self, v: u64) {
+        self.id = v;
+    }
+
+    #[inline]
     /// Consume the document returning the inner values.
-    pub fn into_inner(self) -> Vec<(Text<'a>, Value<'a>)> {
-        self.0
+    pub fn into_fields(self) -> Vec<(Text<'a>, Value<'a>)> {
+        self.fields
     }
 
+    #[inline]
+    /// Get a reference to the document fields.
+    pub fn fields(&self) -> &[(Text<'a>, Value<'a>)] {
+        &self.fields
+    }
+
+    #[inline]
     /// Insert a new entry in the doc.
     pub fn insert(&mut self, key: impl Into<String>, value: Value<'a>) {
-        self.0.push((Text::from(key.into()), value));
+        self.fields.push((Text::from(key.into()), value));
+    }
+}
+
+impl<'a> ArchivedDocument<'a> {
+    #[inline]
+    /// The unique ID of the document.
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
+    #[inline]
+    /// Get a reference to the document fields.
+    pub fn fields(&self) -> &[(ArchivedText<'a>, ArchivedValue<'a>)] {
+        &self.fields
     }
 }
 
 impl<'a> From<Vec<(Text<'a>, Value<'a>)>> for Document<'a> {
     fn from(value: Vec<(Text<'a>, Value<'a>)>) -> Self {
-        Self(value)
-    }
-}
-
-impl<'a> Deref for Document<'a> {
-    type Target = Vec<(Text<'a>, Value<'a>)>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> DerefMut for Document<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<'a> Deref for ArchivedDocument<'a> {
-    type Target = ArchivedVec<(ArchivedText<'a>, ArchivedValue<'a>)>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> DerefMut for ArchivedDocument<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        Self {
+            id: 0,
+            fields: value,
+        }
     }
 }
 
@@ -125,6 +141,63 @@ pub enum Value<'a> {
         #[cfg_attr(any(feature = "validation", test), archive_attr(omit_bounds))]
         Vec<(Text<'a>, Value<'a>)>,
     ),
+}
+
+macro_rules! write_array {
+    ($f:expr, $values:expr) => {{
+        write!($f, "[")?;
+        for (i, value) in $values.iter().enumerate() {
+            if i == 0 {
+                write!($f, "{value}")?;
+            } else {
+                write!($f, ", {value}")?;
+            }
+        }
+        write!($f, "]")
+    }};
+    ($f:expr, $values:expr, debug) => {{
+        write!($f, "[")?;
+        for (i, value) in $values.iter().enumerate() {
+            if i == 0 {
+                write!($f, "{value:?}")?;
+            } else {
+                write!($f, ", {value:?}")?;
+            }
+        }
+        write!($f, "]")
+    }};
+}
+
+impl<'a> Debug for ArchivedValue<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArchivedValue::Null => write!(f, "null"),
+            ArchivedValue::Bool(v) => write!(f, "{v}"),
+            ArchivedValue::String(v) => write!(f, "{v:?}"),
+            ArchivedValue::Bytes(v) => write!(f, "{v:?}"),
+            ArchivedValue::U64(v) => write!(f, "{v}"),
+            ArchivedValue::I64(v) => write!(f, "{v}"),
+            ArchivedValue::F64(v) => write!(f, "{v}"),
+            ArchivedValue::ArrayBool(values) => write_array!(f, values),
+            ArchivedValue::ArrayString(values) => write_array!(f, values, debug),
+            ArchivedValue::ArrayBytes(values) => write_array!(f, values, debug),
+            ArchivedValue::ArrayU64(values) => write_array!(f, values),
+            ArchivedValue::ArrayI64(values) => write_array!(f, values),
+            ArchivedValue::ArrayF64(values) => write_array!(f, values),
+            ArchivedValue::ArrayDynamic(values) => write_array!(f, values, debug),
+            ArchivedValue::Object(object) => {
+                write!(f, "{{")?;
+                for (i, (key, value)) in object.iter().enumerate() {
+                    if i == 0 {
+                        write!(f, "{key:?}: {value:?}")?;
+                    } else {
+                        write!(f, ", {key:?}: {value:?}")?;
+                    }
+                }
+                write!(f, "}}")
+            },
+        }
+    }
 }
 
 #[repr(C)]
