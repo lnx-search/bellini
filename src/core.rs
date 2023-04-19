@@ -8,6 +8,7 @@ use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
+use rkyv::vec::ArchivedVec;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[repr(C)]
@@ -49,6 +50,20 @@ impl<'a> Deref for Document<'a> {
 }
 
 impl<'a> DerefMut for Document<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'a> Deref for ArchivedDocument<'a> {
+    type Target = ArchivedVec<(ArchivedText<'a>, ArchivedValue<'a>)>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for ArchivedDocument<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -131,11 +146,16 @@ impl<'a> From<String> for Text<'a> {
     }
 }
 
+impl<'a> Deref for Text<'a> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl<'a> AsRef<str> for Text<'a> {
     fn as_ref(&self) -> &str {
-        // SAFETY:
-        // The string is guaranteed to be UTF8 going into the type.
-        // unsafe { std::str::from_utf8_unchecked(self.0.as_ref()) }
         self.0.as_ref()
     }
 }

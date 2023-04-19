@@ -181,6 +181,50 @@ impl<'de: 'a, 'a> Deserialize<'de> for Text<'a> {
     }
 }
 
+impl<'de> Deserialize<'de> for Bytes {
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ValuesVisitor;
+
+        impl<'de> Visitor<'de> for ValuesVisitor {
+            type Value = Bytes;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a JSON object")
+            }
+
+            #[inline]
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                Ok(Bytes::from(v.to_owned()))
+            }
+
+            #[inline]
+            fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                Ok(Bytes::from(v))
+            }
+
+            #[inline]
+            fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                Deserialize::deserialize(deserializer)
+            }
+        }
+
+        deserializer.deserialize_str(ValuesVisitor)
+    }
+}
+
 impl<'de> Deserialize<'de> for Document<'de> {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

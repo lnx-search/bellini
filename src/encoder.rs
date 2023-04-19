@@ -63,7 +63,7 @@ impl<W: Write, const N: usize> Encoder<W, N> {
 
 /// A helper wrapper that calculates the checksum
 /// of the resulting document and it's length.
-struct ChecksumAndLenWriter<W> {
+pub struct ChecksumAndLenWriter<W> {
     writer: W,
     length: usize,
     checksum_hasher: crc32fast::Hasher,
@@ -71,7 +71,7 @@ struct ChecksumAndLenWriter<W> {
 
 impl<W: Write> ChecksumAndLenWriter<W> {
     /// Creates a new checksum writer.
-    fn new(writer: W) -> Self {
+    pub fn new(writer: W) -> Self {
         Self {
             writer,
             length: 0,
@@ -81,21 +81,24 @@ impl<W: Write> ChecksumAndLenWriter<W> {
 
     #[inline]
     /// Reset the checksum state.
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.length = 0;
         self.checksum_hasher.reset();
     }
 
     #[inline]
     /// Appends the checksum and len to the end of the writer.
-    fn write_footer(&mut self) -> io::Result<()> {
+    ///
+    /// The footer is written in the format of:
+    /// | length(4 bytes) | checksum(4 bytes) |
+    pub fn write_footer(&mut self) -> io::Result<()> {
         let checksum = mem::take(&mut self.checksum_hasher).finalize();
         self.writer.write_all(&(self.length as u32).to_le_bytes())?;
         self.writer.write_all(&checksum.to_le_bytes())?;
         Ok(())
     }
 
-    fn into_inner(self) -> W {
+    pub fn into_inner(self) -> W {
         self.writer
     }
 }
@@ -132,6 +135,7 @@ mod tests {
         document.insert("name", Value::String(Text::from("Hello, world!")));
 
         encoder.encode(&document).expect("Encode document");
+        let _ = encoder.into_writer();
 
         assert_eq!(writer.len(), 80, "Written byte lengths should match");
 
