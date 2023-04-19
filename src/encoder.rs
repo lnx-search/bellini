@@ -21,6 +21,7 @@ pub struct Encoder<W: Write, const N: usize = DEFAULT_SCRATCH_SPACE> {
 }
 
 impl<W: Write, const N: usize> Encoder<W, N> {
+    #[inline]
     /// Create a new document encoder.
     pub fn new(writer: W) -> Self {
         Self {
@@ -52,6 +53,13 @@ impl<W: Write, const N: usize> Encoder<W, N> {
         }
     }
 
+    #[inline]
+    /// Return a reference to the given writer.
+    pub fn writer(&self) -> &W {
+        self.writer.inner().writer().inner()
+    }
+
+    #[inline]
     /// Consumer the encoder and return the inner writer.
     pub fn into_writer(self) -> W {
         self.writer
@@ -77,6 +85,12 @@ impl<W: Write> ChecksumAndLenWriter<W> {
             length: 0,
             checksum_hasher: crc32fast::Hasher::new(),
         }
+    }
+
+    #[inline]
+    /// Get a reference to the inner writer.
+    pub fn inner(&self) -> &W {
+        &self.writer
     }
 
     #[inline]

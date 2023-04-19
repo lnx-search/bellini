@@ -64,9 +64,15 @@ impl<const N: usize, S> BelliniSerializer<N, S> {
     }
 
     #[inline]
-    /// Returns a mutable
+    /// Returns a mutable reference to the inner serializer
     pub fn inner_mut(&mut self) -> &mut S {
         &mut self.serializer
+    }
+
+    #[inline]
+    /// Returns a reference to the inner serializer
+    pub fn inner(&self) -> &S {
+        &self.serializer
     }
 
     pub fn into_inner_serializer(self) -> S {
@@ -249,6 +255,12 @@ impl<W: io::Write> BelliniWriteSerializer<W> {
     /// Returns a mutable reference to the inner writer.
     pub(crate) fn writer_mut(&mut self) -> &mut W {
         &mut self.inner
+    }
+
+    #[inline]
+    /// Returns a reference to the inner writer.
+    pub(crate) fn writer(&self) -> &W {
+        &self.inner
     }
 
     #[inline]
