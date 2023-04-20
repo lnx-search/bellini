@@ -262,7 +262,7 @@ impl<'a, A: Archiver> Iterator for ArchivedIterator<'a, A> {
 /// This makes not guarantees about safety and is down to the implementor
 /// of the trait to ensure things are correct.
 pub trait Archiver: private::Sealed {
-    fn get_archived<'a>(buf: &'a [u8]) -> io::Result<&'a rkyv::Archived<Document>>;
+    fn get_archived(buf: &[u8]) -> io::Result<&rkyv::Archived<Document>>;
 }
 
 mod private {
@@ -281,7 +281,7 @@ pub struct UnsafeArchiver;
 impl private::Sealed for UnsafeArchiver {}
 impl Archiver for UnsafeArchiver {
     #[inline]
-    fn get_archived<'a>(buf: &'a [u8]) -> io::Result<&'a rkyv::Archived<Document>> {
+    fn get_archived(buf: &[u8]) -> io::Result<&rkyv::Archived<Document>> {
         // SAFETY:
         //  This requires the buffer to both be correctly aligned, and have
         //  the correct layout, otherwise this is UB.
@@ -465,21 +465,33 @@ mod tests {
             .expect("Deserialize doc");
         let doc4 = docs.next();
 
-        assert_eq!(doc1[0].1, Value::U64(3), "Document values should match.");
         assert_eq!(
-            doc1[1].1,
+            doc1.fields()[0].1,
+            Value::U64(3),
+            "Document values should match."
+        );
+        assert_eq!(
+            doc1.fields()[1].1,
             Value::ArrayString(vec![Text::from("hello3")]),
             "Document values should match."
         );
-        assert_eq!(doc2[0].1, Value::U64(2), "Document values should match.");
         assert_eq!(
-            doc2[1].1,
+            doc2.fields()[0].1,
+            Value::U64(2),
+            "Document values should match."
+        );
+        assert_eq!(
+            doc2.fields()[1].1,
             Value::ArrayString(vec![Text::from("hello2")]),
             "Document values should match."
         );
-        assert_eq!(doc3[0].1, Value::U64(1), "Document values should match.");
         assert_eq!(
-            doc3[1].1,
+            doc3.fields()[0].1,
+            Value::U64(1),
+            "Document values should match."
+        );
+        assert_eq!(
+            doc3.fields()[1].1,
             Value::ArrayString(vec![Text::from("hello")]),
             "Document values should match."
         );
@@ -509,40 +521,64 @@ mod tests {
         let decoder = Decoder::new(&writer);
         let mut docs = decoder.deserializer_iter();
 
-        let doc1: Document<'_> = docs
+        let doc1: Document = docs
             .next()
             .expect("Doc should exist")
             .expect("Doc should be archived");
-        let doc2: Document<'_> = docs
+        let doc2: Document = docs
             .next()
             .expect("Doc should exist")
             .expect("Doc should be archived");
-        let doc3: Document<'_> = docs
+        let doc3: Document = docs
             .next()
             .expect("Doc should exist")
             .expect("Doc should be archived");
         let doc4 = docs.next();
 
-        assert_eq!(doc1[0].0.as_ref(), "id", "Document key should match.");
-        assert_eq!(doc1[0].1, Value::U64(3), "Document values should match.");
         assert_eq!(
-            doc1[1].1,
+            doc1.fields()[0].0.as_ref(),
+            "id",
+            "Document key should match."
+        );
+        assert_eq!(
+            doc1.fields()[0].1,
+            Value::U64(3),
+            "Document values should match."
+        );
+        assert_eq!(
+            doc1.fields()[1].1,
             Value::ArrayString(vec![Text::from("hello3")]),
             "Document values should match."
         );
 
-        assert_eq!(doc2[0].0.as_ref(), "id", "Document key should match.");
-        assert_eq!(doc2[0].1, Value::U64(2), "Document values should match.");
         assert_eq!(
-            doc2[1].1,
+            doc2.fields()[0].0.as_ref(),
+            "id",
+            "Document key should match."
+        );
+        assert_eq!(
+            doc2.fields()[0].1,
+            Value::U64(2),
+            "Document values should match."
+        );
+        assert_eq!(
+            doc2.fields()[1].1,
             Value::ArrayString(vec![Text::from("hello2")]),
             "Document values should match."
         );
 
-        assert_eq!(doc3[0].0.as_ref(), "id", "Document key should match.");
-        assert_eq!(doc3[0].1, Value::U64(1), "Document values should match.");
         assert_eq!(
-            doc3[1].1,
+            doc3.fields()[0].0.as_ref(),
+            "id",
+            "Document key should match."
+        );
+        assert_eq!(
+            doc3.fields()[0].1,
+            Value::U64(1),
+            "Document values should match."
+        );
+        assert_eq!(
+            doc3.fields()[1].1,
             Value::ArrayString(vec![Text::from("hello")]),
             "Document values should match."
         );
@@ -592,14 +628,38 @@ mod tests {
             .expect("Deserialize doc");
         let doc4 = docs.next();
 
-        assert_eq!(doc1[0].0.as_ref(), "id", "Document key should match.");
-        assert_eq!(doc1[0].1, Value::U64(3), "Document values should match.");
+        assert_eq!(
+            doc1.fields()[0].0.as_ref(),
+            "id",
+            "Document key should match."
+        );
+        assert_eq!(
+            doc1.fields()[0].1,
+            Value::U64(3),
+            "Document values should match."
+        );
 
-        assert_eq!(doc2[0].0.as_ref(), "id", "Document key should match.");
-        assert_eq!(doc2[0].1, Value::U64(2), "Document values should match.");
+        assert_eq!(
+            doc2.fields()[0].0.as_ref(),
+            "id",
+            "Document key should match."
+        );
+        assert_eq!(
+            doc2.fields()[0].1,
+            Value::U64(2),
+            "Document values should match."
+        );
 
-        assert_eq!(doc3[0].0.as_ref(), "id", "Document key should match.");
-        assert_eq!(doc3[0].1, Value::U64(1), "Document values should match.");
+        assert_eq!(
+            doc3.fields()[0].0.as_ref(),
+            "id",
+            "Document key should match."
+        );
+        assert_eq!(
+            doc3.fields()[0].1,
+            Value::U64(1),
+            "Document values should match."
+        );
 
         assert!(doc4.is_none(), "Doc4 should not exist");
     }

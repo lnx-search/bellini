@@ -56,9 +56,15 @@ impl Document {
     }
 
     #[inline]
+    /// Get a mutable reference to the document fields.
+    pub fn fields_mut(&mut self) -> &mut [(Text, Value)] {
+        &mut self.fields
+    }
+
+    #[inline]
     /// Insert a new entry in the doc.
-    pub fn insert(&mut self, key: impl Into<String>, value: Value) {
-        self.fields.push((Text::from(key.into()), value));
+    pub fn insert(&mut self, key: impl Into<Text>, value: Value) {
+        self.fields.push((key.into(), value));
     }
 }
 
@@ -113,8 +119,8 @@ pub enum Value {
     I64(i64),
     /// A f64 value.
     F64(f64),
-    /// A date duration value starting from `UNIX_EPOCH`.
-    Date(Duration),
+    /// A date duration offset starting from `UNIX_EPOCH` in microseconds.
+    Date(i64),
     /// An array of boolean values.
     ArrayBool(#[with(rkyv::with::CopyOptimize)] Vec<bool>),
     /// An array of UTF-8 string values.
@@ -127,8 +133,8 @@ pub enum Value {
     ArrayI64(#[with(rkyv::with::Raw)] Vec<i64>),
     /// An array of f64 values.
     ArrayF64(#[with(rkyv::with::Raw)] Vec<f64>),
-    /// An array of date duration values from `UNIX_EPOCH`.
-    ArrayDate(Vec<Duration>),
+    /// An array of date offset values from `UNIX_EPOCH` in microseconds.
+    ArrayDate(Vec<i64>),
     /// An array of dynamic values.
     ///
     /// This is much less performant than using
@@ -146,6 +152,64 @@ pub enum Value {
         Vec<(Text, Value)>,
     ),
 }
+
+impl Value {
+    /// Get the string representation of the enum type.
+    pub fn as_type(&self) -> &'static str {
+        match self {
+            Value::Null => "null",
+            Value::Bool(_) => "bool",
+            Value::String(_) => "string",
+            Value::Bytes(_) => "bytes",
+            Value::U64(_) => "u64",
+            Value::I64(_) => "i64",
+            Value::F64(_) => "f64",
+            Value::Date(_) => "datetime",
+            Value::ArrayBool(_) => "array<bool>",
+            Value::ArrayString(_) => "array<string>",
+            Value::ArrayBytes(_) => "array<bytes>",
+            Value::ArrayU64(_) => "array<u64>",
+            Value::ArrayI64(_) => "array<i64>",
+            Value::ArrayF64(_) => "array<f64>",
+            Value::ArrayDate(_) => "array<datetime>",
+            Value::ArrayDynamic(_) => "array<any>",
+            Value::Object(_) => "object",
+        }
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_type())
+    }
+}
+
+macro_rules! derive_from {
+    ($t:ty, $variant:ident) => {
+        impl From<$t> for Value {
+            #[inline]
+            fn from(v: $t) -> Self {
+                Self::$variant(v.into())
+            }
+        }
+    };
+}
+
+derive_from!(bool, Bool);
+derive_from!(u64, U64);
+derive_from!(i64, I64);
+derive_from!(f64, F64);
+derive_from!(Text, String);
+derive_from!(String, String);
+derive_from!(&str, String);
+derive_from!(Bytes, Bytes);
+derive_from!(Vec<u8>, Bytes);
+derive_from!(Vec<bool>, ArrayBool);
+derive_from!(Vec<u64>, ArrayU64);
+derive_from!(Vec<i64>, ArrayI64);
+derive_from!(Vec<f64>, ArrayF64);
+derive_from!(Vec<Text>, ArrayString);
+derive_from!(Vec<Bytes>, ArrayBytes);
 
 macro_rules! write_array {
     ($f:expr, $values:expr) => {{
