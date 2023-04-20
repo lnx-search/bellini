@@ -4,7 +4,6 @@
 //! these can apply additional optimisations provided by rkyv when
 //! working with a concrete type.
 
-use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
 use std::time::Duration;
@@ -18,12 +17,12 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// A wrapper around a given set of document object keys and values.
 ///
 /// The document has a specialised ID field but this is not set by default.
-pub struct Document<'a> {
+pub struct Document {
     id: u64,
-    fields: Vec<(Text<'a>, Value<'a>)>,
+    fields: Vec<(Text, Value)>,
 }
 
-impl<'a> Document<'a> {
+impl Document {
     /// Create a new document with a given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
@@ -46,24 +45,24 @@ impl<'a> Document<'a> {
 
     #[inline]
     /// Consume the document returning the inner values.
-    pub fn into_fields(self) -> Vec<(Text<'a>, Value<'a>)> {
+    pub fn into_fields(self) -> Vec<(Text, Value)> {
         self.fields
     }
 
     #[inline]
     /// Get a reference to the document fields.
-    pub fn fields(&self) -> &[(Text<'a>, Value<'a>)] {
+    pub fn fields(&self) -> &[(Text, Value)] {
         &self.fields
     }
 
     #[inline]
     /// Insert a new entry in the doc.
-    pub fn insert(&mut self, key: impl Into<String>, value: Value<'a>) {
+    pub fn insert(&mut self, key: impl Into<String>, value: Value) {
         self.fields.push((Text::from(key.into()), value));
     }
 }
 
-impl<'a> ArchivedDocument<'a> {
+impl ArchivedDocument {
     #[inline]
     /// The unique ID of the document.
     pub fn id(&self) -> u64 {
@@ -72,13 +71,13 @@ impl<'a> ArchivedDocument<'a> {
 
     #[inline]
     /// Get a reference to the document fields.
-    pub fn fields(&self) -> &[(ArchivedText<'a>, ArchivedValue<'a>)] {
+    pub fn fields(&self) -> &[(ArchivedText, ArchivedValue)] {
         &self.fields
     }
 }
 
-impl<'a> From<Vec<(Text<'a>, Value<'a>)>> for Document<'a> {
-    fn from(value: Vec<(Text<'a>, Value<'a>)>) -> Self {
+impl From<Vec<(Text, Value)>> for Document {
+    fn from(value: Vec<(Text, Value)>) -> Self {
         Self {
             id: 0,
             fields: value,
@@ -99,13 +98,13 @@ impl<'a> From<Vec<(Text<'a>, Value<'a>)>> for Document<'a> {
 ///
 /// There are various specialisations applied for stricter types i.e. arrays of
 /// all the same type, strings, etc...
-pub enum Value<'a> {
+pub enum Value {
     /// A null value.
     Null,
     /// A boolean value.
     Bool(bool),
     /// A UTF-8 string value.
-    String(Text<'a>),
+    String(Text),
     /// A bytes value.
     Bytes(Bytes),
     /// A u64 value.
@@ -119,7 +118,7 @@ pub enum Value<'a> {
     /// An array of boolean values.
     ArrayBool(#[with(rkyv::with::CopyOptimize)] Vec<bool>),
     /// An array of UTF-8 string values.
-    ArrayString(Vec<Text<'a>>),
+    ArrayString(Vec<Text>),
     /// An array of bytes values.
     ArrayBytes(Vec<Bytes>),
     /// An array of u64 values.
@@ -138,13 +137,13 @@ pub enum Value<'a> {
     ArrayDynamic(
         #[omit_bounds]
         #[cfg_attr(any(feature = "validation", test), archive_attr(omit_bounds))]
-        Vec<Value<'a>>,
+        Vec<Value>,
     ),
     /// An object of string keys and dynamic values.
     Object(
         #[omit_bounds]
         #[cfg_attr(any(feature = "validation", test), archive_attr(omit_bounds))]
-        Vec<(Text<'a>, Value<'a>)>,
+        Vec<(Text, Value)>,
     ),
 }
 
@@ -173,7 +172,7 @@ macro_rules! write_array {
     }};
 }
 
-impl<'a> Debug for ArchivedValue<'a> {
+impl Debug for ArchivedValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ArchivedValue::Null => write!(f, "null"),
@@ -212,66 +211,67 @@ impl<'a> Debug for ArchivedValue<'a> {
 #[archive_attr(repr(C))]
 #[cfg_attr(any(feature = "validation", test), archive(check_bytes))]
 /// A UTF-8 encoded string.
-pub struct Text<'a>(#[with(rkyv::with::AsOwned)] Cow<'a, str>);
+pub struct Text(#[with(rkyv::with::Raw)] Vec<u8>);
 
-impl<'a> From<&'a str> for Text<'a> {
-    fn from(value: &'a str) -> Self {
-        Self(Cow::Borrowed(value))
+impl From<&str> for Text {
+    fn from(value: &str) -> Self {
+        Self(value.as_bytes().to_vec())
     }
 }
 
-impl<'a> From<String> for Text<'a> {
+impl From<String> for Text {
     fn from(value: String) -> Self {
-        Self(Cow::Owned(value))
+        Self(value.into_bytes())
     }
 }
 
-impl<'a> Deref for Text<'a> {
+impl Deref for Text {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        unsafe { std::str::from_utf8_unchecked(&self.0) }
     }
 }
 
-impl<'a> AsRef<str> for Text<'a> {
+impl AsRef<str> for Text {
     fn as_ref(&self) -> &str {
-        self.0.as_ref()
+        unsafe { std::str::from_utf8_unchecked(&self.0) }
     }
 }
-impl<'a> Deref for ArchivedText<'a> {
+
+impl Deref for ArchivedText {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        &self.0.as_str()
+        unsafe { std::str::from_utf8_unchecked(&self.0) }
     }
 }
 
-impl<'a> AsRef<str> for ArchivedText<'a> {
+impl AsRef<str> for ArchivedText {
     fn as_ref(&self) -> &str {
-        self.0.as_str()
+        unsafe { std::str::from_utf8_unchecked(&self.0) }
     }
 }
 
-impl<'a> Debug for Text<'a> {
+impl Debug for Text {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", <Self as AsRef<str>>::as_ref(self))
     }
 }
 
-impl<'a> Display for Text<'a> {
+impl Display for Text {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", <Self as AsRef<str>>::as_ref(self))
     }
 }
 
-impl<'a> Debug for ArchivedText<'a> {
+impl Debug for ArchivedText {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.as_ref())
     }
 }
 
-impl<'a> Display for ArchivedText<'a> {
+impl Display for ArchivedText {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_ref())
     }

@@ -50,7 +50,7 @@ impl<'a> Decoder<'a> {
     #[cfg(any(feature = "validation", test))]
     #[inline]
     /// Deserialize the document at the given idx position.
-    pub fn deserialize_at(&self, idx: usize) -> io::Result<Option<Document<'a>>> {
+    pub fn deserialize_at(&self, idx: usize) -> io::Result<Option<Document>> {
         let position_opt = self.known_positions.as_ref().and_then(|p| p.get(idx));
         let start = match position_opt {
             None => return Ok(None),
@@ -75,7 +75,7 @@ impl<'a> Decoder<'a> {
     pub unsafe fn archived_at(
         &self,
         idx: usize,
-    ) -> io::Result<Option<&'a rkyv::Archived<Document<'a>>>> {
+    ) -> io::Result<Option<&'a rkyv::Archived<Document>>> {
         let position_opt = self.known_positions.as_ref().and_then(|p| p.get(idx));
         let start = match position_opt {
             None => return Ok(None),
@@ -97,7 +97,7 @@ impl<'a> Decoder<'a> {
     pub fn checked_archived_at(
         &self,
         idx: usize,
-    ) -> io::Result<Option<&'a rkyv::Archived<Document<'a>>>> {
+    ) -> io::Result<Option<&'a rkyv::Archived<Document>>> {
         let position_opt = self.known_positions.as_ref().and_then(|p| p.get(idx));
         let start = match position_opt {
             None => return Ok(None),
@@ -244,7 +244,7 @@ impl<'a, A: Archiver> ArchivedIterator<'a, A> {
 }
 
 impl<'a, A: Archiver> Iterator for ArchivedIterator<'a, A> {
-    type Item = io::Result<&'a rkyv::Archived<Document<'a>>>;
+    type Item = io::Result<&'a rkyv::Archived<Document>>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -312,7 +312,7 @@ mod validation_archiver {
     }
 
     impl<'a> Iterator for DeserializerIterator<'a> {
-        type Item = io::Result<Document<'a>>;
+        type Item = io::Result<Document>;
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
@@ -445,19 +445,19 @@ mod tests {
         let mut docs = decoder.checked_archived_iter();
 
         // The linter may mark this as an error, but it's a false-positive.
-        let doc1: Document<'_> = docs
+        let doc1: Document = docs
             .next()
             .expect("Doc should exist")
             .expect("Doc should be archived")
             .deserialize(&mut SharedDeserializeMap::default())
             .expect("Deserialize doc");
-        let doc2: Document<'_> = docs
+        let doc2: Document = docs
             .next()
             .expect("Doc should exist")
             .expect("Doc should be archived")
             .deserialize(&mut SharedDeserializeMap::default())
             .expect("Deserialize doc");
-        let doc3: Document<'_> = docs
+        let doc3: Document = docs
             .next()
             .expect("Doc should exist")
             .expect("Doc should be archived")
@@ -572,19 +572,19 @@ mod tests {
         let mut docs = unsafe { decoder.archived_iter() };
 
         // The linter may mark this as an error, but it's a false-positive.
-        let doc1: Document<'_> = docs
+        let doc1: Document = docs
             .next()
             .expect("Doc should exist")
             .expect("Doc should be archived")
             .deserialize(&mut SharedDeserializeMap::default())
             .expect("Deserialize doc");
-        let doc2: Document<'_> = docs
+        let doc2: Document = docs
             .next()
             .expect("Doc should exist")
             .expect("Doc should be archived")
             .deserialize(&mut SharedDeserializeMap::default())
             .expect("Deserialize doc");
-        let doc3: Document<'_> = docs
+        let doc3: Document = docs
             .next()
             .expect("Doc should exist")
             .expect("Doc should be archived")

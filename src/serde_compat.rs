@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer};
 
 use crate::core::{Bytes, Document, Text, Value};
 
-impl<'de: 'a, 'a> Deserialize<'de> for Value<'a> {
+impl<'de> Deserialize<'de> for Value {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -15,7 +15,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for Value<'a> {
         struct ValueVisitor;
 
         impl<'de> Visitor<'de> for ValueVisitor {
-            type Value = Value<'de>;
+            type Value = Value;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter
@@ -138,7 +138,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for Value<'a> {
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for Text<'a> {
+impl<'de> Deserialize<'de> for Text {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -147,7 +147,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for Text<'a> {
         struct ValuesVisitor;
 
         impl<'de> Visitor<'de> for ValuesVisitor {
-            type Value = Text<'de>;
+            type Value = Text;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str("a JSON object")
@@ -225,7 +225,7 @@ impl<'de> Deserialize<'de> for Bytes {
     }
 }
 
-impl<'de> Deserialize<'de> for Document<'de> {
+impl<'de> Deserialize<'de> for Document {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -234,7 +234,7 @@ impl<'de> Deserialize<'de> for Document<'de> {
         struct ValuesVisitor;
 
         impl<'de> Visitor<'de> for ValuesVisitor {
-            type Value = Document<'de>;
+            type Value = Document;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str("a JSON object")
@@ -269,14 +269,12 @@ impl<'de> Deserialize<'de> for Document<'de> {
 
 #[derive(Deserialize)]
 #[serde(untagged)] // This sucks, but we cant really do anything about it.
-pub enum TypedVec<'a> {
-    #[serde(bound(deserialize = "'de: 'a"))]
-    String(Vec<Text<'a>>),
+pub enum TypedVec {
+    String(Vec<Text>),
     U64(Vec<u64>),
     I64(Vec<i64>),
     F64(Vec<f64>),
     Bool(Vec<bool>),
     Bytes(Vec<Bytes>),
-    #[serde(bound(deserialize = "'de: 'a"))]
-    Dynamic(Vec<Value<'a>>),
+    Dynamic(Vec<Value>),
 }
